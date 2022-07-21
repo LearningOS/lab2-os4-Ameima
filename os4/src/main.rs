@@ -1,8 +1,10 @@
+// 关闭std与main
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
+// 新增bitflags，用于方便的操作bit位标志
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
@@ -27,6 +29,7 @@ mod trap;
 core::arch::global_asm!(include_str!("entry.asm"));
 core::arch::global_asm!(include_str!("link_app.S"));
 
+// 清零bss
 fn clear_bss() {
     extern "C" {
         fn sbss();
@@ -43,8 +46,10 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     println!("[kernel] Hello, world!");
+    // 新增，内存管理模块初始化
     mm::init();
     println!("[kernel] back to world!");
+    // 新增, 测试
     mm::remap_test();
     trap::init();
     //trap::enable_interrupt();

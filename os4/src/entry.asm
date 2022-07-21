@@ -1,3 +1,4 @@
+# 没有变化，依旧是设置sp来指定栈顶，然后跳到rust_main执行
     .section .text.entry
     .globl _start
 _start:
