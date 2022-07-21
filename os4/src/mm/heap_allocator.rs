@@ -7,9 +7,10 @@ use buddy_system_allocator::LockedHeap;
 
 // 标注全局堆分配器，使能alloc库
 #[global_allocator]
-// 创建伙伴分配器全局实例
+// 创建伙伴分配器全局实例,这也是内部可变,互斥锁 Mutex<T>(跨线程版的RefCell)
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
+// 绑定分配出错处理
 #[alloc_error_handler]
 // 堆分配出错直接panic
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {

@@ -14,6 +14,7 @@ use lazy_static::*;
 use riscv::register::satp;
 use spin::Mutex;
 
+// 全是从ld里导入过来的
 extern "C" {
     fn stext();
     fn etext();
@@ -56,6 +57,7 @@ impl MemorySet {
     }
 
 
+    // 生成地址空间的token,就是生成其根页表的token,所以调用根页表的方法,取地址号拼上标志位
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
@@ -83,21 +85,30 @@ impl MemorySet {
         self.areas.push(map_area);
     }
 
-    /// Mention that trampoline is not collected by areas.
+    // 跳板代码地址加入页表里,跳板代码也就是之前的trap代码
     fn map_trampoline(&mut self) {
+        // 只调用加页表方法,不用分配页帧写数据什么的,因为本来就在内存里有了
         self.page_table.map(
-            VirtAddr::from(TRAMPOLINE).into(),
-            PhysAddr::from(strampoline as usize).into(),
-            PTEFlags::R | PTEFlags::X,
+            VirtAddr::from(TRAMPOLINE).into(), // TRAMPOLINE是只把跳板放在虚拟地址空间最顶部,
+            // 所有虚拟地址空间都这么放,那在转换的时候就不会造成指令无法桉顺序进行了
+            PhysAddr::from(strampoline as usize).into(), // 物理地址对应ld的那片地址
+            PTEFlags::R | PTEFlags::X, // 可读可执行
         );
     }
 
-    // 生成内核的地址空间
+    // 生成内核的地址空间,在mm初始化的时候被调用,主要是为现有的内核部分内存构建一个虚拟的地址空间概念
+    // 方便一会儿那token设置到satp寄存器里
     pub fn new_kernel() -> Self {
+        // 先创建一个空的地址空间,它由根页表和各逻辑段组成,先都置零
         let mut memory_set = Self::new_bare();
-        // 将跳板加入内核地址空间
+        // 将跳板代码地址加入内核地址空间的页表里,跳板代码地址本来就在ld中排布并且导出过位置符号了
+        // 就连内核也要这样映射一下才能平滑,内核其它地方都是恒等映射的,但是这里也给映射到最高处了
         memory_set.map_trampoline();
-        // 将内核各段加入内核地址空间
+
+
+        // 将内核各段加入内核地址空间,剩下的段全都是恒等映射,
+        // 恒定映射我们这里已经用枚举弄了抽象了,到时候map的时候可以根据恒等来处理
+        // CPU依旧是按同一种方式查表,只不过我们在维护表的时候用恒等的方式进行维护罢了
         info!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
         info!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
         info!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
@@ -155,6 +166,7 @@ impl MemorySet {
             ),
             None,
         );
+        // 返回内核地址空间
         memory_set
     }
 
@@ -233,8 +245,12 @@ impl MemorySet {
     // 且将当前多级页表的根节点所在的物理页号填充进去。
     // 我们将这个值写入当前 CPU 的 satp CSR ，从这一刻开始 SV39 分页模式就被启用了，
     // 而且 MMU 会使用内核地址空间的多级页表进行地址转换。
+
+    // 拿到一个地址空间,生成对应的token放进satp中
     pub fn activate(&self) {
+        // 生成token,也就是生成根页表的token,取地址号拼上标志位
         let satp = self.page_table.token();
+        // 放进satp
         unsafe {
             satp::write(satp);
             core::arch::asm!("sfence.vma");

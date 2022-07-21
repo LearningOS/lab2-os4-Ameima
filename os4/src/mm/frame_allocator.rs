@@ -110,6 +110,7 @@ pub fn init_frame_allocator() {
     extern "C" {
         fn ekernel();
     }
+    // 发生首次访问,自动用new创建了一个全零的,之后在这里调用init填入数值
     FRAME_ALLOCATOR.exclusive_access().init(
         PhysAddr::from(ekernel as usize).ceil(),
         PhysAddr::from(MEMORY_END).floor(),
