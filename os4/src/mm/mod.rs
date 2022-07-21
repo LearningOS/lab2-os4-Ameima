@@ -24,7 +24,7 @@ pub fn init() {
     frame_allocator::init_frame_allocator();
     // 创建内核地址空间并让 CPU 开启分页模式， MMU 在地址转换的时候使用内核的多级页表，这一切均在一行之内做到
     // 首先，我们引用 KERNEL_SPACE ，这是它第一次被使用，就在此时它会被初始化
-    // 接着使用 .exclusive_access() 获取一个可变引用 &mut MemorySet 。需要注意的是这里发生了两次隐式类型转换
-    // 最后，我们调用 MemorySet::activate
+    // 接着使用 .lock()
+    // 最后，我们调用 MemorySet::activate, 设置satp, 使能分页模式
     KERNEL_SPACE.lock().activate();
 }
