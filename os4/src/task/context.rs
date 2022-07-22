@@ -18,6 +18,7 @@ impl TaskContext {
             s: [0; 12],
         }
     }
+    // 构建初始时被挂起的任务，看起来像是正要恢复trap时被挂起的，这样就把初次进入用户态的任务交给trap上下文了
     pub fn goto_trap_return(kstack_ptr: usize) -> Self {
         Self {
             ra: trap_return as usize,

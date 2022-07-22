@@ -49,15 +49,20 @@ struct TaskManagerInner {
 }
 
 lazy_static! {
-    /// a `TaskManager` instance through lazy_static!
+    // 初次访问时，也就是rust_main调用run_first_task时发生的
     pub static ref TASK_MANAGER: TaskManager = {
         info!("init TASK_MANAGER");
+        // 获取应用数，从link_app.S里导出的符号
         let num_app = get_num_app();
         info!("num_app = {}", num_app);
+        // 新建一个任务控制块的空向量
         let mut tasks: Vec<TaskControlBlock> = Vec::new();
+        // 获取各个app的ELF数据，也是用从link_app.S里导出的符号直接截取
         for i in 0..num_app {
+            // 分别给各个app新建任务，得到各个任务的任务控制块
             tasks.push(TaskControlBlock::new(get_app_data(i), i));
         }
+        // 构建好任务管理器，返回
         TaskManager {
             num_app,
             inner: unsafe {

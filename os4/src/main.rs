@@ -56,7 +56,7 @@ pub fn rust_main() -> ! {
     println!("[kernel] back to world!");
     // 新增, 检查内核地址空间的多级页表是否被正确设置
     mm::remap_test();
-    // 设置stvec寄存器指向trap处理函数的地址
+    // 设置stvec寄存器指向panic。这样在内核中发生trap会panic
     trap::init();
     // 通过 sie 寄存器中的 seie 位，对中断信号是否接收进行控制。设置为接受
     trap::enable_timer_interrupt();

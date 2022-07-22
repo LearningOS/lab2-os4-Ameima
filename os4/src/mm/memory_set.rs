@@ -179,19 +179,29 @@ impl MemorySet {
         // 使用外部 crate xmas_elf 来解析传入的应用 ELF 数据并可以轻松取出各个部分。
 
         let elf = xmas_elf::ElfFile::new(elf_data).unwrap();
+        // 得到elf头
         let elf_header = elf.header;
+        // 得到魔数
         let magic = elf_header.pt1.magic;
         // 检查魔数
         assert_eq!(magic, [0x7f, 0x45, 0x4c, 0x46], "invalid elf!");
+        // 得到程序头的数量，程序头部表（Program Header Table），如果存在的话，告诉系统如何创建进程映像。
         let ph_count = elf_header.pt2.ph_count();
+        // 用来记录应用虚拟地址静态部分，也就各个段的结束位置
         let mut max_end_vpn = VirtPageNum(0);
+        // 遍历程序头
         for i in 0..ph_count {
             let ph = elf.program_header(i).unwrap();
+            // 对于LOAD类型，表明它有被内核加载的必要，进行加载操作
             if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
+                // 用ph.virtual_addr()和ph.mem_size()查看ELF期望这一区域在应用虚拟地址空间中的位置
                 let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
                 let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
+                // 用ph_flags查看ELF期望这一区域的权限
+                // 首先肯定是用户可访问的
                 let mut map_perm = MapPermission::U;
                 let ph_flags = ph.flags();
+                // 分别看各种权限
                 if ph_flags.is_read() {
                     map_perm |= MapPermission::R;
                 }
@@ -201,20 +211,27 @@ impl MemorySet {
                 if ph_flags.is_execute() {
                     map_perm |= MapPermission::X;
                 }
+                // 可以为任务的这个段创建逻辑段了
                 let map_area = MapArea::new(start_va, end_va, MapType::Framed, map_perm);
                 max_end_vpn = map_area.vpn_range.get_end();
+                // 压入任务的地址空间
                 memory_set.push(
                     map_area,
+                    // 压入的同时附带数据
                     Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
                 );
             }
         }
-        // map user stack with U flags
+        // 刚才记录了静态部分的结束位置，接下来在静态部分的上方再分配以一个逻辑段作为用户栈
+        // 页号转换为地址，取整4K对齐
         let max_end_va: VirtAddr = max_end_vpn.into();
+        // 设置栈的最下界
         let mut user_stack_bottom: usize = max_end_va.into();
-        // guard page
+        // 搞一个保护页，有虚页面无实际页帧，好在栈溢出的时候trap
         user_stack_bottom += PAGE_SIZE;
+        // 设置栈最上界
         let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
+        // 用户栈压入地址空间
         memory_set.push(
             MapArea::new(
                 user_stack_bottom.into(),
@@ -224,7 +241,7 @@ impl MemorySet {
             ),
             None,
         );
-        // map TrapContext
+        // 压入trap上下文段，这部分config文件中给出了地址
         memory_set.push(
             MapArea::new(
                 TRAP_CONTEXT.into(),
@@ -234,6 +251,7 @@ impl MemorySet {
             ),
             None,
         );
+        // 返回地址空间、用户栈底位置、应用程序入口点
         (
             memory_set,
             user_stack_top,

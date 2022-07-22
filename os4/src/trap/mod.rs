@@ -27,12 +27,15 @@ use riscv::register::{
 
 core::arch::global_asm!(include_str!("trap.S"));
 
+// 初始化trap，设置在内核中发生trap时直接panic
 pub fn init() {
     set_kernel_trap_entry();
 }
 
+// 设置trap处理地址为panic地址
 fn set_kernel_trap_entry() {
     unsafe {
+        // 这个符号在本文件下面，触发就panic
         stvec::write(trap_from_kernel as usize, TrapMode::Direct);
     }
 }
@@ -51,7 +54,9 @@ pub fn enable_timer_interrupt() {
 
 #[no_mangle]
 pub fn trap_handler() -> ! {
+    // 从U到S，设置在内核中发生trap时直接panic
     set_kernel_trap_entry();
+    // 获取当前应用的 Trap 上下文的可变引用
     let cx = current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
@@ -87,18 +92,28 @@ pub fn trap_handler() -> ! {
 
 #[no_mangle]
 pub fn trap_return() -> ! {
+    // 从S到U，设置stvec寄存器中的trap处理地址为跳板地址
     set_user_trap_entry();
+
+    // 准备好 __restore 需要两个参数：
+    // 分别是 Trap 上下文在应用地址空间中的虚拟地址和要继续执行的应用地址空间的 token 。
     let trap_cx_ptr = TRAP_CONTEXT;
     let user_satp = current_user_token();
+
+    // 导入符号
     extern "C" {
         fn __alltraps();
         fn __restore();
     }
+
+    // 计算 __restore 虚地址
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
+
     unsafe {
         core::arch::asm!(
             "fence.i",
             "jr {restore_va}",
+            // 跳转到__restore
             restore_va = in(reg) restore_va,
             in("a0") trap_cx_ptr,
             in("a1") user_satp,
