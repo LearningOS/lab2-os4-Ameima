@@ -59,6 +59,9 @@ impl StackFrameAllocator {
         self.current = l.0;
         self.end = r.0;
     }
+    pub fn remain_num(&self) -> usize {
+        end - current + recycled.len()
+    }
 }
 
 // 为其实现物理页帧分配器特性
@@ -130,8 +133,9 @@ fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
-
-
+pub fn frame_remain_num() -> usize {
+    FRAME_ALLOCATOR.remain_num()
+}
 
 
 #[allow(unused)]

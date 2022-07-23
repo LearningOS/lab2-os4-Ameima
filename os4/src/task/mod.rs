@@ -152,6 +152,32 @@ impl TaskManager {
             panic!("All applications completed!");
         }
     }
+    
+    // LAB1: Try to implement your function to update or get task info!
+
+    // 增加对应ID的系统调用计数
+    fn update_syscall_times(&self, syscall_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].task_syscall_times[syscall_id] += 1;
+    }
+
+    // 获取当前应用任务信息
+    fn get_task_info(&self) -> TaskInfo {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        let time = get_time_us() / 1000 - inner.tasks[current].task_first_running_time.unwrap();
+        TaskInfo {
+            status: inner.tasks[current].task_status,
+            syscall_times: inner.tasks[current].task_syscall_times,
+            time,
+        }
+    }
+
+    fn get_current_memory_set(&self) -> &mut MemorySet {
+        let mut inner = self.inner.exclusive_access();
+        &mut inner.tasks[inner.current_task].memory_set
+    }
 }
 
 /// Run the first task in task list.
@@ -195,4 +221,8 @@ pub fn current_user_token() -> usize {
 /// Get the current 'Running' task's trap contexts.
 pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
+}
+
+pub fn get_current_memory_set() -> &mut MemorySet {
+    TASK_MANAGER.get_current_memory_set()
 }

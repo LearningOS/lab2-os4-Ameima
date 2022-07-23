@@ -2,7 +2,7 @@
 // 操作系统通过对不同页表的管理，来完成对不同应用和操作系统自身所在的虚拟内存，以及虚拟内存与物理内存映射关系的全面管理。
 // 这种管理是建立在 地址空间 的抽象上，用来表明正在运行的应用或内核自身所在执行环境中的可访问的内存空间。
 
-use super::{frame_alloc, FrameTracker};
+use super::{frame_alloc, frame_remain_num, FrameTracker};
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use super::{StepByOne, VPNRange};
@@ -168,6 +168,50 @@ impl MemorySet {
         );
         // 返回内核地址空间
         memory_set
+    }
+
+    // 为分配内存的系统调用提供支持
+    pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
+        if (port & !0b0000_0111 != 0) || (port & 0b0000_0111 == 0) {return -1;}
+        let va_start = VirtAddr::from(start);
+        let va_end = VirtAddr::from(start + len);
+        if va_start.page_offset() != 0 { return -1; }
+        let mut map_perm = MapPermission::U;
+        if port & 0b0000_0001 == 0b0000_0001 {
+            map_perm |= MapPermission::R;
+        }
+        if port & 0b0000_0010 == 0b0000_0010 {
+            map_perm |= MapPermission::W;
+        }
+        if port & 0b0000_0100 == 0b0000_0100 {
+            map_perm |= MapPermission::X;
+        }
+        let map_area = MapArea::new(va_start, va_end, MapType::Framed, map_perm);
+        if map_area.vpn_range.len() > frame_remain_num() { return -1; }
+        for vpn in map_area.vpn_range {
+            if self.page_table.find_pte(vpn) == None { return -1; }
+        }
+        self.push(map_area, None);
+        0
+    }
+
+    pub fn munmap(&mut self, start: usize, len: usize) -> isize {
+        let vpn_start = VirtAddr::from(start).floor();
+        let vpn_end = VirtAddr::from(start + len).ceil();
+        for map_area in self.areas.iter_mut() {
+        let mut remain_count = usize::from(vpn_end) - usize::from(vpn_start);
+        for map_area in self.areas.iter_mut() {
+            if map_area.vpn_range.get_start >= vpn_start && 
+            map_area.vpn_range.get_end <= vpn_end {
+                map_area.unmap(self.page_table);
+                remain_count -= map_area.vpn_range.len();
+            }
+        }
+        if remain_count == 0 {
+            0
+        } else {
+            -1
+        }
     }
 
     // 分析应用的 ELF 文件格式的内容，解析出各数据段并生成对应的地址空间

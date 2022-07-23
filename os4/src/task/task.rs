@@ -10,7 +10,10 @@ pub struct TaskControlBlock {
     pub task_cx: TaskContext, // 任务上下文，12个s寄存器、ra寄存器、sp寄存器
     pub memory_set: MemorySet, // 地址空间，页表、逻辑段实体
     pub trap_cx_ppn: PhysPageNum, // trap上下文的物理页帧号，也就是物理地址中间那部分
-    pub base_size: usize, // 应用数据的大小，也就是在应用地址空间中从  开始到用户栈结束一共包含多少字节。
+    pub base_size: usize, // 应用数据的大小，也就是在应用地址空间中从0x0开始到用户栈结束一共包含多少字节。
+    // LAB1: Add whatever you need about the Task.
+    pub task_syscall_times: [u32; MAX_SYSCALL_NUM], // 各种系统调用的次数
+    pub task_first_running_time: Option<usize>, // 任务第一次被调度的时刻
 }
 
 impl TaskControlBlock {
