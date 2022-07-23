@@ -14,6 +14,10 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
+use crate::config::MAX_SYSCALL_NUM;
+use crate::syscall::process::TaskInfo;
+use crate::timer::get_time_us;
+use crate::mm::MemorySet;
 use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
@@ -174,7 +178,7 @@ impl TaskManager {
         }
     }
 
-    fn get_current_memory_set(&self) -> &mut MemorySet {
+    fn get_current_memory_set(&self) -> &'static mut MemorySet {
         let mut inner = self.inner.exclusive_access();
         &mut inner.tasks[inner.current_task].memory_set
     }
@@ -218,11 +222,21 @@ pub fn current_user_token() -> usize {
     TASK_MANAGER.get_current_token()
 }
 
+// 增加对应ID的系统调用计数
+pub fn update_syscall_times(syscall_id: usize) {
+    TASK_MANAGER.update_syscall_times(syscall_id);
+}
+
+// 获取当前应用任务信息
+pub fn get_task_info() -> TaskInfo {
+    TASK_MANAGER.get_task_info()
+}
+
 /// Get the current 'Running' task's trap contexts.
 pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
 }
 
-pub fn get_current_memory_set() -> &mut MemorySet {
+pub fn get_current_memory_set() -> &'static mut MemorySet {
     TASK_MANAGER.get_current_memory_set()
 }

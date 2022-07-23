@@ -1,9 +1,9 @@
 //! Process management syscalls
 
 use crate::config::MAX_SYSCALL_NUM;
-use crate::task::{exit_current_and_run_next, suspend_current_and_run_next, current_user_token, get_current_memory_set, TaskStatus};
+use crate::task::{exit_current_and_run_next, suspend_current_and_run_next, current_user_token, get_current_memory_set, get_task_info, TaskStatus};
 use crate::timer::get_time_us;
-use crate::mm::{translated_assign_ptr, MemorySet};
+use crate::mm::translated_assign_ptr;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -62,16 +62,16 @@ pub fn sys_mmap(start: usize, len: usize, port: usize) -> isize {
     get_current_memory_set().mmap(start, len, port)
 }
 
-pub fn sys_munmap(_start: usize, _len: usize) -> isize {
+pub fn sys_munmap(start: usize, len: usize) -> isize {
     get_current_memory_set().munmap(start, len)
 }
 
 // YOUR JOB: 引入虚地址后重写 sys_task_info
 pub fn sys_task_info(ti: *mut TaskInfo) -> isize {
     translated_assign_ptr(
-        get_current_token(),
+        current_user_token(),
         ti,
         get_task_info()
-    )
+    );
     0
 }

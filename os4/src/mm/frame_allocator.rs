@@ -60,7 +60,7 @@ impl StackFrameAllocator {
         self.end = r.0;
     }
     pub fn remain_num(&self) -> usize {
-        end - current + recycled.len()
+        self.end - self.current + self.recycled.len()
     }
 }
 
@@ -134,7 +134,7 @@ fn frame_dealloc(ppn: PhysPageNum) {
 }
 
 pub fn frame_remain_num() -> usize {
-    FRAME_ALLOCATOR.remain_num()
+    FRAME_ALLOCATOR.exclusive_access().remain_num()
 }
 
 

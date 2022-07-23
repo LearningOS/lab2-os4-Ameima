@@ -3,6 +3,7 @@ use super::TaskContext;
 use crate::config::{kernel_stack_position, TRAP_CONTEXT};
 use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::trap::{trap_handler, TrapContext};
+use super::MAX_SYSCALL_NUM;
 
 // 任务控制块
 pub struct TaskControlBlock {

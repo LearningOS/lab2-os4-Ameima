@@ -187,7 +187,7 @@ impl MemorySet {
             map_perm |= MapPermission::X;
         }
         let map_area = MapArea::new(va_start, va_end, MapType::Framed, map_perm);
-        if map_area.vpn_range.len() > frame_remain_num() { return -1; }
+        if map_area.vpn_range.get_start() > frame_remain_num() { return -1; }
         for vpn in map_area.vpn_range {
             if self.page_table.find_pte(vpn) == None { return -1; }
         }
@@ -198,7 +198,6 @@ impl MemorySet {
     pub fn munmap(&mut self, start: usize, len: usize) -> isize {
         let vpn_start = VirtAddr::from(start).floor();
         let vpn_end = VirtAddr::from(start + len).ceil();
-        for map_area in self.areas.iter_mut() {
         let mut remain_count = usize::from(vpn_end) - usize::from(vpn_start);
         for map_area in self.areas.iter_mut() {
             if map_area.vpn_range.get_start >= vpn_start && 
