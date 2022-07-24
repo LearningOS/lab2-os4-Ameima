@@ -87,6 +87,8 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
+        //对初次调度时间则进行设置
+        next_task.task_first_running_time = Some(get_time_us() / 1000);
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -142,6 +144,10 @@ impl TaskManager {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
+            //如果没有被调度过，则对初次调度时间则进行设置
+            if inner.tasks[next].task_first_running_time == None {
+                inner.tasks[next].task_first_running_time = Some(get_time_us() / 1000);
+            }
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;

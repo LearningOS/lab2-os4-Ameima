@@ -12,7 +12,7 @@ pub struct TimeVal {
     pub usec: usize,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct TaskInfo {
     pub status: TaskStatus,
     pub syscall_times: [u32; MAX_SYSCALL_NUM],
@@ -34,12 +34,6 @@ pub fn sys_yield() -> isize {
 // YOUR JOB: 引入虚地址后重写 sys_get_time
 pub fn sys_get_time(ts: *mut TimeVal, _tz: usize) -> isize {
     let us = get_time_us();
-    // unsafe {
-    //     *ts = TimeVal {
-    //         sec: us / 1_000_000,
-    //         usec: us % 1_000_000,
-    //     };
-    // }
     translated_assign_ptr(
         current_user_token(),
         ts,

@@ -186,9 +186,9 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     }
     v
 }
-
+use core::fmt::Debug;
 // 在某个应用的虚拟地址空间中给裸指针赋值
-pub fn translated_assign_ptr<T>(token: usize, ptr: *mut T, value: T) {
+pub fn translated_assign_ptr<T: Debug>(token: usize, ptr: *mut T, value: T) {
     let page_table = PageTable::from_token(token);
     let va = VirtAddr::from(ptr as usize);
     let vpn = va.floor();
