@@ -52,6 +52,8 @@ impl TaskControlBlock {
             memory_set,
             trap_cx_ppn,
             base_size: user_sp,
+            task_syscall_times: [0; MAX_SYSCALL_NUM],
+            task_first_running_time: None,
         };
         // 设置trap上下文，让挂起的程序恢复时从trap恢复到用户态执行
         let trap_cx = task_control_block.get_trap_cx();

@@ -115,7 +115,7 @@ impl PageTable {
     }
 
     // 在多级页表找到一个虚拟页号对应的页表项的不可变引用。
-    fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
+    pub fn find_pte(&self, vpn: VirtPageNum) -> Option<&PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&PageTableEntry> = None;
@@ -196,7 +196,7 @@ pub fn translated_assign_ptr<T>(token: usize, ptr: *mut T, value: T) {
     let ppn = page_table.translate(vpn).unwrap().ppn();
     let pa: PhysAddr = (usize::from(PhysAddr::from(ppn)) + offset).into();
     unsafe {
-        let ptr_pa = (va.0 as *mut T).as_mut().unwrap();
+        let ptr_pa = (pa.0 as *mut T).as_mut().unwrap();
         *ptr_pa = value;
     }
 }

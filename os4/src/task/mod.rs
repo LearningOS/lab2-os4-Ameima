@@ -17,7 +17,6 @@ mod task;
 use crate::config::MAX_SYSCALL_NUM;
 use crate::syscall::process::TaskInfo;
 use crate::timer::get_time_us;
-use crate::mm::MemorySet;
 use crate::loader::{get_app_data, get_num_app};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
@@ -178,9 +177,16 @@ impl TaskManager {
         }
     }
 
-    fn get_current_memory_set(&self) -> &'static mut MemorySet {
+    fn mmap_in_current_memory_set(&self, start: usize, len: usize, port: usize) -> isize {
         let mut inner = self.inner.exclusive_access();
-        &mut inner.tasks[inner.current_task].memory_set
+        let current_task = inner.current_task;
+        inner.tasks[current_task].memory_set.mmap(start, len, port)
+    }
+
+    fn munmap_in_current_memory_set(&self, start: usize, len: usize) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let current_task = inner.current_task;
+        inner.tasks[current_task].memory_set.munmap(start, len)
     }
 }
 
@@ -237,6 +243,10 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
 }
 
-pub fn get_current_memory_set() -> &'static mut MemorySet {
-    TASK_MANAGER.get_current_memory_set()
+pub fn mmap_in_current_memory_set(start: usize, len: usize, port:usize) -> isize {
+    TASK_MANAGER.mmap_in_current_memory_set(start, len, port)
+}
+
+pub fn munmap_in_current_memory_set(start: usize, len: usize) -> isize {
+    TASK_MANAGER.munmap_in_current_memory_set(start, len)
 }

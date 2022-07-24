@@ -172,7 +172,7 @@ impl MemorySet {
 
     // 为分配内存的系统调用提供支持
     pub fn mmap(&mut self, start: usize, len: usize, port: usize) -> isize {
-        if (port & !0b0000_0111 != 0) || (port & 0b0000_0111 == 0) {return -1;}
+        if (port & !0b0000_0111 != 0) || (port & 0b0000_0111 == 0) { return -1; }
         let va_start = VirtAddr::from(start);
         let va_end = VirtAddr::from(start + len);
         if va_start.page_offset() != 0 { return -1; }
@@ -187,30 +187,27 @@ impl MemorySet {
             map_perm |= MapPermission::X;
         }
         let map_area = MapArea::new(va_start, va_end, MapType::Framed, map_perm);
-        if map_area.vpn_range.get_start() > frame_remain_num() { return -1; }
+        if VirtAddr::from(len).ceil() > VirtPageNum(frame_remain_num()) { return -1; }
         for vpn in map_area.vpn_range {
-            if self.page_table.find_pte(vpn) == None { return -1; }
+            if let Some(pte) = self.page_table.find_pte(vpn) { 
+                if pte.is_valid() {
+                    return -1; 
+                }
+            }
         }
         self.push(map_area, None);
         0
     }
 
     pub fn munmap(&mut self, start: usize, len: usize) -> isize {
-        let vpn_start = VirtAddr::from(start).floor();
-        let vpn_end = VirtAddr::from(start + len).ceil();
-        let mut remain_count = usize::from(vpn_end) - usize::from(vpn_start);
         for map_area in self.areas.iter_mut() {
-            if map_area.vpn_range.get_start >= vpn_start && 
-            map_area.vpn_range.get_end <= vpn_end {
-                map_area.unmap(self.page_table);
-                remain_count -= map_area.vpn_range.len();
+            if VirtAddr::from(map_area.vpn_range.get_start()) == VirtAddr::from(start) &&
+            VirtAddr::from(map_area.vpn_range.get_end()) == VirtAddr::from(start + len) {
+                map_area.unmap(&mut self.page_table);
+                return 0;
             }
         }
-        if remain_count == 0 {
-            0
-        } else {
-            -1
-        }
+        -1
     }
 
     // 分析应用的 ELF 文件格式的内容，解析出各数据段并生成对应的地址空间
